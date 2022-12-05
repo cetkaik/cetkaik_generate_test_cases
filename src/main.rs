@@ -66,7 +66,14 @@ let mut state = initial_state().choose().0;
         writeln!(&mut w, "let pure_move = pure_move.unwrap();").unwrap();
         writeln!(
             &mut w,
-            "assert!(hop1zuo1_candidates.contains(&pure_move) || candidates.contains(&pure_move));"
+            r#"
+if !(hop1zuo1_candidates.contains(&pure_move) || candidates.contains(&pure_move)) {{
+    println!("hop1zuo1_candidates: {{:?}}", hop1zuo1_candidates);
+    println!("candidates: {{:?}}", candidates);
+    println!("pure_move: {{:?}}", pure_move);
+    panic!("pure_move not contained in the candidates");
+}}
+"#
         )
         .unwrap();
 
@@ -80,7 +87,7 @@ let hnr_state = match pure_move {{
     PureMove::NormalMove(m) => {{
         apply_normal_move(&state, m, config).unwrap().choose().0
     }},
-    _ => {{ panic!() }}
+    _ => {{ panic!("expected PureMove::NormalMove") }}
 }};"#
                 )
                 .unwrap();
@@ -110,7 +117,7 @@ let hnr_state = match pure_move {{
         
         hnr_state
     }},
-    _ => {{ panic!() }}
+    _ => {{ panic!("Expected PureMove::InfAfterStep") }}
 }};"#,
                     aha_move
                 )
@@ -140,7 +147,7 @@ match &resolved {{
     HandResolved::NeitherTymokNorTaxot(s) => {{
         state = s.clone();
     }},
-    _ => {{ panic!() }}
+    _ => {{ panic!("Expected HandResolved::NeitherTymokNorTaxot") }}
 }}
 "#
                 )
@@ -169,7 +176,7 @@ match &resolved {{
     HandResolved::HandExists {{ if_tymok, if_taxot }} => {{
         state = if_tymok;
     }},
-    _ => {{ panic!() }}
+    _ => {{ panic!("Expected HandResolved::HandExists") }}
 }}
 "#,
                         )
@@ -195,11 +202,11 @@ match &resolved {{
         match if_taxot {{
             IfTaxot::NextSeason(ps) => state = ps.clone().choose().0,
             IfTaxot::VictoriousSide(v) => {{
-                panic!()
+                panic!("Expected IfTaxot::VictoriousSide")
             }}
         }}
     }},
-    _ => {{ panic!() }}
+    _ => {{ panic!("Expected HandResolved::HandExists") }}
 }}
                                 "#
                                 )
@@ -211,14 +218,14 @@ match &resolved {{
                                     &mut w,
                                     r#"
         match if_taxot {{
-            IfTaxot::NextSeason(ps) => {{ panic!() }},
+            IfTaxot::NextSeason(ps) => {{ panic!("Expected IfTaxot::NextSeason") }},
             IfTaxot::VictoriousSide(v) => {{
                 assert_eq!(v, {:?});
                 return;
             }}
         }}
     }},
-    _ => {{ panic!() }}
+    _ => {{ panic!("Expected HandResolved::HandExists") }}
 }}
                                 "#,
                                     v
@@ -239,7 +246,7 @@ match &resolved {{
         assert_eq!(v, {:?});
         return;
     }},
-    _ => {{ panic!() }}
+    _ => {{ panic!("Expected HandResolved::GameEndsWithoutTymokTaxot") }}
 }}
 "#,
                     v
