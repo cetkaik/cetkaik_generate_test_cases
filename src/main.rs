@@ -19,7 +19,8 @@ fn do_match(max_turn_num: usize, very_verbose: bool) {
     let mut w = Vec::new();
     let config = Config::cerke_online_alpha();
     let mut rng = SmallRng::from_entropy();
-    let mut state = initial_state().choose().0;
+    let chooser: f64 = rng.gen();
+    let mut state = initial_state().choose_by_uniform_random_variable(chooser).0;
     let test_name = rng.gen_range(0u64..=u64::MAX);
     writeln!(
         &mut w,
@@ -36,9 +37,10 @@ use cetkaik_full_state_transition::state::*;
 use cetkaik_full_state_transition::*;
 
 let config = Config::cerke_online_alpha();
-let mut state = initial_state().choose().0;
+let chooser = {:?};
+let mut state = initial_state().choose_by_uniform_random_variable(chooser).0;
 "#,
-        test_name
+        test_name, chooser
     )
     .unwrap();
     for turn_num in 1..=max_turn_num {
@@ -54,7 +56,8 @@ let mut state = initial_state().choose().0;
         let pure_move_2 = candidates.choose(&mut rng);
 
         let pure_move = { pure_move_1.or(pure_move_2).cloned() };
-        let pure_move_str = format!("{:?}", pure_move).replace("InfAfterStep {", "message::InfAfterStep {");
+        let pure_move_str =
+            format!("{:?}", pure_move).replace("InfAfterStep {", "message::InfAfterStep {");
         writeln!(&mut w, "let pure_move = {};", pure_move_str).unwrap();
 
         if pure_move.is_none() {
@@ -79,16 +82,22 @@ if !(hop1zuo1_candidates.contains(&pure_move) || candidates.contains(&pure_move)
 
         let hnr_state = match pure_move {
             PureMove::NormalMove(m) => {
-                let hnr_state = apply_normal_move(&state, m, config).unwrap().choose().0;
+                let chooser: f64 = rng.gen();
+                let hnr_state = apply_normal_move(&state, m, config)
+                    .unwrap()
+                    .choose_by_uniform_random_variable(chooser)
+                    .0;
                 writeln!(
                     &mut w,
                     r#"
 let hnr_state = match pure_move {{
     PureMove::NormalMove(m) => {{
-        apply_normal_move(&state, m, config).unwrap().choose().0
+        let chooser: f64 = {:?};
+        apply_normal_move(&state, m, config).unwrap().choose_by_uniform_random_variable(chooser).0
     }},
     _ => {{ panic!("expected PureMove::NormalMove") }}
-}};"#
+}};"#,
+                    chooser
                 )
                 .unwrap();
                 if very_verbose {
@@ -97,36 +106,43 @@ let hnr_state = match pure_move {{
                 hnr_state
             }
             PureMove::InfAfterStep(m) => {
-                let ext_state = apply_inf_after_step(&state, m, config).unwrap().choose().0;
+                let chooser: f64 = rng.gen();
+                let ext_state = apply_inf_after_step(&state, m, config)
+                    .unwrap()
+                    .choose_by_uniform_random_variable(chooser)
+                    .0;
                 let aha_move = ext_state
                     .get_candidates(config)
                     .choose(&mut rng)
                     .copied()
                     .unwrap();
+
+                let chooser2: f64 = rng.gen();
+                let hnr_state = apply_after_half_acceptance(&ext_state, aha_move, config)
+                    .unwrap()
+                    .choose_by_uniform_random_variable(chooser2)
+                    .0;
                 writeln!(
                     &mut w,
                     r#"
 let hnr_state = match pure_move {{
     PureMove::InfAfterStep(m) => {{
-        let ext_state = apply_inf_after_step(&state, m, config).unwrap().choose().0;
+        let chooser = {:?};
+        let ext_state = apply_inf_after_step(&state, m, config).unwrap().choose_by_uniform_random_variable(chooser).0;
         let aha_move = {:?};
+        let chooser2 = {:?};
         let hnr_state = apply_after_half_acceptance(&ext_state, aha_move, config)
             .unwrap()
-            .choose()
+            .choose_by_uniform_random_variable(chooser2)
             .0;
         
         hnr_state
     }},
     _ => {{ panic!("Expected PureMove::InfAfterStep") }}
-}};"#,
-                    aha_move
+}};"#, chooser,
+                    aha_move, chooser2
                 )
                 .unwrap();
-
-                let hnr_state = apply_after_half_acceptance(&ext_state, aha_move, config)
-                    .unwrap()
-                    .choose()
-                    .0;
 
                 if very_verbose {
                     writeln!(&mut w, r#"assert_eq!(hnr_state, {:?});"#, &hnr_state).unwrap();
@@ -196,11 +212,16 @@ match &resolved {{
                         .unwrap();
                         match if_taxot {
                             IfTaxot::NextSeason(ps) => {
+                                let chooser: f64 = rng.gen();
+                                state = ps.clone().choose_by_uniform_random_variable(chooser).0;
                                 writeln!(
                                     &mut w,
                                     r#"
         match if_taxot {{
-            IfTaxot::NextSeason(ps) => state = ps.clone().choose().0,
+            IfTaxot::NextSeason(ps) => {{
+                let chooser = {:?};
+                state = ps.clone().choose_by_uniform_random_variable(chooser).0
+            }},
             IfTaxot::VictoriousSide(v) => {{
                 panic!("Expected IfTaxot::VictoriousSide")
             }}
@@ -208,10 +229,10 @@ match &resolved {{
     }},
     _ => {{ panic!("Expected HandResolved::HandExists") }}
 }}
-                                "#
+                                "#,
+                                    chooser
                                 )
                                 .unwrap();
-                                state = ps.clone().choose().0
                             }
                             IfTaxot::VictoriousSide(v) => {
                                 writeln!(
