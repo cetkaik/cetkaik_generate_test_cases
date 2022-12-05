@@ -32,9 +32,14 @@ use cetkaik_full_state_transition::message::NormalMove::*;
 use cetkaik_core::absolute::Coord;
 use cetkaik_core::absolute::Row::*;
 use cetkaik_core::absolute::Column::*;
+use cetkaik_core::Color::*;
+use cetkaik_core::Profession::*;
+use cetkaik_full_state_transition::Rate::*;
 use cetkaik_full_state_transition::message::*;
 use cetkaik_full_state_transition::state::*;
 use cetkaik_full_state_transition::*;
+use cetkaik_core::absolute::Side::*;
+use cetkaik_full_state_transition::Season::*;
 
 let config = Config::cerke_online_alpha();
 let chooser = {:?};
@@ -190,7 +195,7 @@ match &resolved {{
                             r#"
 match &resolved {{
     HandResolved::HandExists {{ if_tymok, if_taxot }} => {{
-        state = if_tymok;
+        state = if_tymok.clone();
     }},
     _ => {{ panic!("Expected HandResolved::HandExists") }}
 }}
@@ -205,9 +210,8 @@ match &resolved {{
                             r#"
 match &resolved {{
     HandResolved::HandExists {{ if_tymok, if_taxot }} => {{
-        assert_eq!(if_taxot, {:?});
+        
 "#,
-                            if_taxot
                         )
                         .unwrap();
                         match if_taxot {
@@ -292,5 +296,5 @@ match &resolved {{
 }
 
 fn main() {
-    do_match(5, false);
+    do_match(480, false);
 }
