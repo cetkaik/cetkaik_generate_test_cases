@@ -245,7 +245,7 @@ match &resolved {{
         match if_taxot {{
             IfTaxot::NextSeason(ps) => {{ panic!("Expected IfTaxot::NextSeason") }},
             IfTaxot::VictoriousSide(v) => {{
-                assert_eq!(v, {:?});
+                assert_eq!(*v, {:?});
                 return;
             }}
         }}
@@ -296,5 +296,5 @@ match &resolved {{
 }
 
 fn main() {
-    do_match(480, false);
+    do_match(340, false);
 }
