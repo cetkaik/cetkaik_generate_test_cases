@@ -1,27 +1,33 @@
-mod random_player;
 use cetkaik_core::absolute::Side;
 use cetkaik_full_state_transition::message::*;
 use cetkaik_full_state_transition::state::*;
 use cetkaik_full_state_transition::*;
 use rand::prelude::*;
-use random_player::*;
+pub struct HandExists {
+    pub if_tymok: GroundState,
+    pub if_taxot: IfTaxot,
+}
 
-fn do_match(
-    config: Config,
-    ia_player: &mut RandomPlayer,
-    a_player: &mut RandomPlayer,
-    quiet: bool,
-) {
+#[derive(Clone)]
+pub enum TymokOrTaxot {
+    Tymok(GroundState),
+    Taxot(IfTaxot),
+}
+
+fn do_match() {
+    let quiet = false;
+    let config = Config::cerke_online_alpha();
+    let mut rng = SmallRng::from_entropy();
     let mut state = initial_state().choose().0;
     loop {
-        let searcher: &mut RandomPlayer = match state.whose_turn {
-            Side::IASide => ia_player,
-            Side::ASide => a_player,
-        };
+        match state.whose_turn {
+            Side::IASide => println!("IASide"),
+            Side::ASide => println!("ASide"),
+        }
         let pure_move = {
-            let (hop1zuo1_candidates, candidates) = state.get_candidates(searcher.config);
-            let pure_move_1 = hop1zuo1_candidates.choose(&mut searcher.rng);
-            let pure_move_2 = candidates.choose(&mut searcher.rng);
+            let (hop1zuo1_candidates, candidates) = state.get_candidates(config);
+            let pure_move_1 = hop1zuo1_candidates.choose(&mut rng);
+            let pure_move_2 = candidates.choose(&mut rng);
             pure_move_1.or(pure_move_2).cloned()
         };
         if pure_move.is_none() {
@@ -35,11 +41,11 @@ fn do_match(
             PureMove::NormalMove(m) => apply_normal_move(&state, m, config).unwrap().choose().0,
             PureMove::InfAfterStep(m) => {
                 let ext_state = apply_inf_after_step(&state, m, config).unwrap().choose().0;
-                let aha_move = {
-                    let candidates = ext_state.get_candidates(searcher.config);
-                    candidates.choose(&mut searcher.rng).copied()
-                }
-                .unwrap();
+                let aha_move = ext_state
+                    .get_candidates(config)
+                    .choose(&mut rng)
+                    .copied()
+                    .unwrap();
                 if !quiet {
                     println!("Move(excited): {:?}", aha_move);
                 }
@@ -61,7 +67,7 @@ fn do_match(
                     TymokOrTaxot::Tymok(he.if_tymok.clone()),
                     TymokOrTaxot::Taxot(he.if_taxot.clone()),
                 ]
-                .choose(&mut searcher.rng)
+                .choose(&mut rng)
                 .cloned()
                 .unwrap()
                 {
@@ -89,12 +95,5 @@ fn do_match(
 }
 
 fn main() {
-    let config = Config::cerke_online_alpha();
-
-    do_match(
-        config,
-        &mut RandomPlayer::new(config),
-        &mut RandomPlayer::new(config),
-        false,
-    );
+    do_match();
 }
