@@ -1,16 +1,17 @@
-mod cetkaik_engine;
 mod random_player;
-mod greedy;
-use cetkaik_full_state_transition::state::*;
-use cetkaik_full_state_transition::message::*;
-use cetkaik_full_state_transition::*;
-use cetkaik_core::absolute::Side;
 use cetkaik_core::absolute::NonTam2Piece;
-use greedy::*;
-//use random_player::*;
-use cetkaik_engine::*;
+use cetkaik_core::absolute::Side;
+use cetkaik_full_state_transition::message::*;
+use cetkaik_full_state_transition::state::*;
+use cetkaik_full_state_transition::*;
+use random_player::*;
 
-fn do_match(config: Config, ia_player: &mut dyn CetkaikEngine, a_player: &mut dyn CetkaikEngine, quiet: bool) {
+fn do_match(
+    config: Config,
+    ia_player: &mut RandomPlayer,
+    a_player: &mut RandomPlayer,
+    quiet: bool,
+) {
     let mut state = initial_state().choose().0;
     let mut turn_count = 0;
     loop {
@@ -36,7 +37,7 @@ fn do_match(config: Config, ia_player: &mut dyn CetkaikEngine, a_player: &mut dy
                 to_s(&state.f.a_side_hop1zuo1),
             );
         }
-        let searcher: &mut dyn CetkaikEngine = match state.whose_turn {
+        let searcher: &mut RandomPlayer = match state.whose_turn {
             Side::IASide => ia_player,
             Side::ASide => a_player,
         };
@@ -49,22 +50,23 @@ fn do_match(config: Config, ia_player: &mut dyn CetkaikEngine, a_player: &mut dy
             println!("Move: {:?}", pure_move);
         }
         let hnr_state = match pure_move {
-            PureMove::NormalMove(m) => {
-                 apply_normal_move(&state, m, config).unwrap().choose().0
-            },
+            PureMove::NormalMove(m) => apply_normal_move(&state, m, config).unwrap().choose().0,
             PureMove::InfAfterStep(m) => {
                 let ext_state = apply_inf_after_step(&state, m, config).unwrap().choose().0;
                 let aha_move = searcher.search_excited(&m, &ext_state).unwrap();
                 if !quiet {
                     println!("Move(excited): {:?}", aha_move);
                 }
-                apply_after_half_acceptance(&ext_state, aha_move, config).unwrap().choose().0
+                apply_after_half_acceptance(&ext_state, aha_move, config)
+                    .unwrap()
+                    .choose()
+                    .0
             }
         };
         let resolved = resolve(&hnr_state, config);
         match &resolved {
             HandResolved::NeitherTymokNorTaxot(s) => state = s.clone(),
-            HandResolved::HandExists{if_tymok, if_taxot} => {
+            HandResolved::HandExists { if_tymok, if_taxot } => {
                 let he = HandExists {
                     if_tymok: if_tymok.clone(),
                     if_taxot: if_taxot.clone(),
@@ -80,15 +82,15 @@ fn do_match(config: Config, ia_player: &mut dyn CetkaikEngine, a_player: &mut dy
                             IfTaxot::VictoriousSide(v) => {
                                 println!("Won: {:?}", v);
                                 break;
-                            },
+                            }
                         }
                     }
                 }
-            },
+            }
             HandResolved::GameEndsWithoutTymokTaxot(v) => {
                 println!("Won: {:?}", v);
                 break;
-            },
+            }
         }
         turn_count += 1;
     }
@@ -96,7 +98,11 @@ fn do_match(config: Config, ia_player: &mut dyn CetkaikEngine, a_player: &mut dy
 
 fn main() {
     let config = Config::cerke_online_alpha();
-    loop {
-        do_match(config, &mut GreedyPlayer::new(config), &mut GreedyPlayer::new(config), false);
-    }
+
+    do_match(
+        config,
+        &mut RandomPlayer::new(config),
+        &mut RandomPlayer::new(config),
+        false,
+    );
 }
