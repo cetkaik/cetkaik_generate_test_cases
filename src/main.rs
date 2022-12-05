@@ -1,9 +1,9 @@
 mod random_player;
-use cetkaik_core::absolute::NonTam2Piece;
 use cetkaik_core::absolute::Side;
 use cetkaik_full_state_transition::message::*;
 use cetkaik_full_state_transition::state::*;
 use cetkaik_full_state_transition::*;
+use rand::prelude::*;
 use random_player::*;
 
 fn do_match(
@@ -13,35 +13,17 @@ fn do_match(
     quiet: bool,
 ) {
     let mut state = initial_state().choose().0;
-    let mut turn_count = 0;
     loop {
-        if !quiet {
-            fn to_s(v: &[NonTam2Piece]) -> String {
-                let mut s = String::new();
-                for (idx, &e) in v.iter().enumerate() {
-                    if idx > 0 {
-                        s += " ";
-                    }
-                    s += &format!("{}", e);
-                }
-                s
-            }
-            println!(
-                "{}, Turn: {:?}, Season: {:?}, Scores: (IA:{}, A:{}), hop1zuo1: (IA: {}, A: {})",
-                turn_count,
-                state.whose_turn,
-                state.season,
-                state.scores.ia(),
-                state.scores.a(),
-                to_s(&state.f.ia_side_hop1zuo1),
-                to_s(&state.f.a_side_hop1zuo1),
-            );
-        }
         let searcher: &mut RandomPlayer = match state.whose_turn {
             Side::IASide => ia_player,
             Side::ASide => a_player,
         };
-        let pure_move = searcher.search(&state);
+        let pure_move = {
+            let (hop1zuo1_candidates, candidates) = state.get_candidates(searcher.config);
+            let pure_move_1 = hop1zuo1_candidates.choose(&mut searcher.rng);
+            let pure_move_2 = candidates.choose(&mut searcher.rng);
+            pure_move_1.or(pure_move_2).cloned()
+        };
         if pure_move.is_none() {
             break;
         }
@@ -53,7 +35,11 @@ fn do_match(
             PureMove::NormalMove(m) => apply_normal_move(&state, m, config).unwrap().choose().0,
             PureMove::InfAfterStep(m) => {
                 let ext_state = apply_inf_after_step(&state, m, config).unwrap().choose().0;
-                let aha_move = searcher.search_excited(&m, &ext_state).unwrap();
+                let aha_move = {
+                    let candidates = ext_state.get_candidates(searcher.config);
+                    candidates.choose(&mut searcher.rng).copied()
+                }
+                .unwrap();
                 if !quiet {
                     println!("Move(excited): {:?}", aha_move);
                 }
@@ -71,7 +57,14 @@ fn do_match(
                     if_tymok: if_tymok.clone(),
                     if_taxot: if_taxot.clone(),
                 };
-                match searcher.search_hand_resolved(&he).unwrap() {
+                match [
+                    TymokOrTaxot::Tymok(he.if_tymok.clone()),
+                    TymokOrTaxot::Taxot(he.if_taxot.clone()),
+                ]
+                .choose(&mut searcher.rng)
+                .cloned()
+                .unwrap()
+                {
                     TymokOrTaxot::Tymok(s) => state = s,
                     TymokOrTaxot::Taxot(t) => {
                         if !quiet {
@@ -92,7 +85,6 @@ fn do_match(
                 break;
             }
         }
-        turn_count += 1;
     }
 }
 
